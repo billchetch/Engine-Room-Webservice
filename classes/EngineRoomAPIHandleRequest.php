@@ -15,6 +15,28 @@ class EngineRoomAPIHandleRequest extends chetch\api\APIHandleRequest{
 				$data = static::about();
 				break;
 			
+
+			case 'events':
+				if(!isset($params['event_source']))throw new Exception("No event source passed in query");
+				if(!isset($params['from']))throw new Exception("No from date passed in query");
+				if(!isset($params['to']))throw new Exception("No to date passed in query");
+				if(!isset($params['event_types']))throw new Exception("No event types passed in query");
+
+				$params['event_types'] = "'".implode("','", explode(',', $params['event_types']))."'";
+				$results = EngineRoomEvent::createCollection($params);
+				$data = EngineRoomEvent::collection2rows($results);
+				break;
+
+			case 'states':
+				if(!isset($params['state_source']))throw new Exception("No state source passed in query");
+				if(!isset($params['state_name']))throw new Exception("No state name passed in query");
+				if(!isset($params['from']))throw new Exception("No from date passed in query");
+				if(!isset($params['to']))throw new Exception("No to date passed in query");
+				
+				$results = EngineRoomState::createCollection($params);
+				$data = EngineRoomState::collection2rows($results);
+				break;
+
 			default:
 				throw new Exception("Unrecognised api request $request");
 				break;

@@ -3,6 +3,31 @@ use chetch\api\APIException as APIException;
 
 class EngineRoomAPIHandleRequest extends chetch\api\APIHandleRequest{
 	
+	protected function filterInterval($allrows, $interval){
+		if($interval > 0){
+			$rows2return = array();
+			$prevRow = null;
+			foreach($allrows as $r){
+				$add2data = false;
+				if($prevRow == null){
+					$add2data = true;
+				} else {
+					$pt = strtotime($prevRow['created']);
+					$rt = strtotime($r['created']);
+					$add2data = (abs($pt - $rt) > $interval);
+				}
+				if($add2data){
+					array_push($rows2return, $r);
+					$prevRow = $r;	
+				}
+			}
+		} else {
+			$rows2return = $allrows;
+		}
+		return $rows2return;
+
+	}
+
 	protected function processGetRequest($request, $params){
 		$data = array();
 		$requestParts = explode('/', $request);
@@ -17,14 +42,21 @@ class EngineRoomAPIHandleRequest extends chetch\api\APIHandleRequest{
 			
 
 			case 'events':
-				if(!isset($params['event_source']))throw new Exception("No event source passed in query");
+				if(!isset($params['event_sources']))throw new Exception("No event sources passed in query");
 				if(!isset($params['from']))throw new Exception("No from date passed in query");
 				if(!isset($params['to']))throw new Exception("No to date passed in query");
 				if(!isset($params['event_types']))throw new Exception("No event types passed in query");
 
+				$params['event_sources'] = "'".implode("','", explode(',', $params['event_sources']))."'";
+				if($params['event_types'] == '*' || strtoupper($params['event_types']) == 'ALL')$params['event_types'] = implode(',', EngineRoomEventType::getNames());
 				$params['event_types'] = "'".implode("','", explode(',', $params['event_types']))."'";
+				
+				//ignore rows that occur less thatn 'interval' seconds between				
+				$interval = empty($params['interval']) ? 0 : $params['interval'];
+
 				$results = EngineRoomEvent::createCollection($params);
-				$data = EngineRoomEvent::collection2rows($results);
+				$allrows = EngineRoomEvent::collection2rows($results);
+				$data = $this->filterInterval($allrows, $interval);
 				break;
 
 			case 'states':
@@ -33,8 +65,12 @@ class EngineRoomAPIHandleRequest extends chetch\api\APIHandleRequest{
 				if(!isset($params['from']))throw new Exception("No from date passed in query");
 				if(!isset($params['to']))throw new Exception("No to date passed in query");
 				
+				//ignore rows that occur less thatn 'interval' seconds between
+				$interval = empty($params['interval']) ? 0 : $params['interval'];
+				
 				$results = EngineRoomState::createCollection($params);
-				$data = EngineRoomState::collection2rows($results);
+				$allrows= EngineRoomState::collection2rows($results);
+				$data = $this->filterInterval($allrows, $interval);
 				break;
 
 			default:
